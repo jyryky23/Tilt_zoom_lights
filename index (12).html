@@ -1,0 +1,235 @@
+
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Osvětlení – Tilt & Zoom Kalkulačka</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Tilt Zoom Kalkulačka">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1e1e2f;
+            color: #f0f0f0;
+        }
+        h1, h2 {
+            color: #f9c74f;
+        }
+        label, input, button {
+            display: block;
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+        input, button {
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+        }
+        input {
+            width: 100%;
+            max-width: 300px;
+        }
+        button {
+            background-color: #577590;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #495867;
+        }
+        .result {
+            margin: 10px 0;
+            font-weight: bold;
+            color: #90be6d;
+        }
+        canvas {
+            margin-top: 30px;
+            border: 1px solid #ccc;
+            background: #fff;
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tilt & Zoom Kalkulačka pro Světla</h1>
+
+    <label for="input_height">Výška světla (m):</label>
+    <input type="number" id="input_height" step="0.1">
+
+    <h2>Tilt (náklon)</h2>
+    <label for="input_distance">Vzdálenost cíle (m):</label>
+    <input type="number" id="input_distance" step="0.1">
+    <label for="input_tilt">Nebo zadej úhel tilt přímo (°):</label>
+    <input type="number" id="input_tilt" step="0.1">
+
+    <h2>Zoom (šířka kuželu)</h2>
+    <label for="input_zoom">Zoom úhel (°):</label>
+    <input type="number" id="input_zoom" step="0.1">
+    <label for="measured_height">Výška měření (m):</label>
+    <input type="number" id="measured_height" step="0.1">
+    <label for="measured_diameter">Průměr kuželu (m):</label>
+    <input type="number" id="measured_diameter" step="0.1">
+
+    <button onclick="calculateCombined()">Spočítat a vykreslit</button>
+
+    <p class="result" id="tilt_result"></p>
+    <p class="result" id="zoom_result"></p>
+
+    <canvas id="beamCanvas" width="1200" height="900"></canvas>
+
+    <script>
+        function calculateCombined() {
+            const h = parseFloat(document.getElementById("input_height").value);
+            const d = parseFloat(document.getElementById("input_distance").value);
+            const tiltInput = parseFloat(document.getElementById("input_tilt").value);
+            const zoomInput = parseFloat(document.getElementById("input_zoom").value);
+            const zmH = parseFloat(document.getElementById("measured_height").value);
+            const zmD = parseFloat(document.getElementById("measured_diameter").value);
+
+            let tilt = tiltInput;
+            if (!tilt && h > 0 && d > 0) {
+                tilt = Math.atan(h / d) * 180 / Math.PI;
+            }
+
+            let zoom = zoomInput;
+            if (!zoom && zmH && zmD) {
+                zoom = 2 * Math.atan((zmD / 2) / zmH) * 180 / Math.PI;
+            }
+
+            if (tilt) {
+                document.getElementById("tilt_result").textContent = `Tilt úhel: ${tilt.toFixed(1)}°`;
+            } else {
+                document.getElementById("tilt_result").textContent = "Tilt úhel: neznámý (zadej hodnoty)";
+            }
+
+            if (zoom) {
+                const groundSpread = 2 * (h / Math.cos(tilt * Math.PI / 180)) * Math.tan((zoom / 2) * Math.PI / 180);
+                document.getElementById("zoom_result").textContent = `Průměr kuželu na podlaze: ${groundSpread.toFixed(2)} m`;
+            } else {
+                document.getElementById("zoom_result").textContent = "Zoom: neznámý (zadej hodnoty)";
+            }
+
+            drawBeam(h, tilt, zoom);
+        }
+
+        function drawBeam(height, tilt, zoom) {
+            const canvas = document.getElementById("beamCanvas");
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const originX = 100;
+            const groundY = 800;
+            const scale = 50;
+            const lightY = groundY - height * scale;
+
+            // Osy
+            ctx.strokeStyle = "#ccc";
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(originX, 0);
+            ctx.lineTo(originX, canvas.height);
+            ctx.stroke();
+
+            
+            // Popisky os
+            ctx.fillStyle = "black";
+            ctx.font = "12px Arial";
+
+            // Svislá osa – výška každého metru
+            for (let i = 0; i <= 15; i++) {
+                let y = groundY - i * scale;
+                ctx.beginPath();
+                ctx.moveTo(originX - 5, y);
+                ctx.lineTo(originX + 5, y);
+                ctx.stroke();
+                ctx.fillText(i + " m", originX + 10, y + 4);
+            }
+
+            // Vodorovná osa – délka každého metru od středu vpravo i vlevo
+            for (let i = -10; i <= 20; i++) {
+                let x = originX + i * scale;
+                ctx.beginPath();
+                ctx.moveTo(x, groundY - 5);
+                ctx.lineTo(x, groundY + 5);
+                ctx.stroke();
+                if (i >= 0) {
+                    ctx.fillText(i + " m", x - 10, groundY + 20);
+                }
+            }
+    
+            ctx.fillStyle = "black";
+            ctx.font = "12px Arial";
+            ctx.fillText("0 m", originX - 20, groundY + 15);
+            ctx.fillText("Výška", originX + 10, 20);
+            ctx.fillText("Podlaha", 10, groundY - 5);
+
+            // světlo
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(originX, lightY, 5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // tilt čára
+            if (tilt !== undefined) {
+                const rad = tilt * Math.PI / 180;
+                const dx = (groundY - lightY) / Math.tan(rad);
+                const xEnd = originX + dx;
+                ctx.strokeStyle = "red";
+                ctx.beginPath();
+                ctx.moveTo(originX, lightY);
+                ctx.lineTo(xEnd, groundY);
+                ctx.stroke();
+            }
+
+            // zoom čáry
+            if (zoom && tilt !== undefined) {
+                const leftRad = (tilt - zoom / 2) * Math.PI / 180;
+                const rightRad = (tilt + zoom / 2) * Math.PI / 180;
+
+                const xLeft = originX + (groundY - lightY) / Math.tan(leftRad);
+                const xRight = originX + (groundY - lightY) / Math.tan(rightRad);
+
+                ctx.strokeStyle = "blue";
+                ctx.beginPath();
+                ctx.moveTo(originX, lightY);
+                ctx.lineTo(xLeft, groundY);
+                ctx.moveTo(originX, lightY);
+                ctx.lineTo(xRight, groundY);
+                ctx.stroke();
+            }
+        }
+    
+    // Zamykání políček v režimu NEBO
+    document.getElementById("input_distance").addEventListener("input", function() {
+        document.getElementById("input_tilt").disabled = !!this.value;
+    });
+    document.getElementById("input_tilt").addEventListener("input", function() {
+        document.getElementById("input_distance").disabled = !!this.value;
+    });
+
+    document.getElementById("input_zoom").addEventListener("input", function() {
+        document.getElementById("measured_height").disabled = !!this.value;
+        document.getElementById("measured_diameter").disabled = !!this.value;
+    });
+    document.getElementById("measured_height").addEventListener("input", function() {
+        document.getElementById("input_zoom").disabled = !!this.value || !!document.getElementById("measured_diameter").value;
+    });
+    document.getElementById("measured_diameter").addEventListener("input", function() {
+        document.getElementById("input_zoom").disabled = !!this.value || !!document.getElementById("measured_height").value;
+    });
+
+</script>
+</body>
+</html>
