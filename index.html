@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Tilt & Zoom Kalkulačka (PWA)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Tilt Zoom Kalkulačka">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1e1e2f;
+            color: white;
+            padding: 20px;
+        }
+        input, button {
+            margin-bottom: 10px;
+            padding: 8px;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 300px;
+        }
+        canvas {
+            margin-top: 20px;
+            background: white;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tilt & Zoom Kalkulačka</h1>
+
+    <label>Výška světla (m): <input type="number" id="input_height" step="0.1"></label>
+
+    <h2>Tilt</h2>
+    <label>Vzdálenost cíle (m): <input type="number" id="input_distance" step="0.1"></label>
+    <label>Nebo úhel tilt (°): <input type="number" id="input_tilt" step="0.1"></label>
+
+    <h2>Zoom</h2>
+    <label>Zoom úhel (°): <input type="number" id="input_zoom" step="0.1"></label>
+    <label>Měřená výška (m): <input type="number" id="measured_height" step="0.1"></label>
+    <label>Průměr kuželu (m): <input type="number" id="measured_diameter" step="0.1"></label>
+
+    <button onclick="calculateCombined()">Spočítat</button>
+
+    <canvas id="beamCanvas" width="600" height="300"></canvas>
+
+    <script>
+        function calculateCombined() {
+            const h = parseFloat(document.getElementById("input_height").value);
+            const d = parseFloat(document.getElementById("input_distance").value);
+            const tiltInput = parseFloat(document.getElementById("input_tilt").value);
+            const zoomInput = parseFloat(document.getElementById("input_zoom").value);
+            const zmH = parseFloat(document.getElementById("measured_height").value);
+            const zmD = parseFloat(document.getElementById("measured_diameter").value);
+
+            let tilt = tiltInput;
+            if (!tilt && h > 0 && d > 0) {
+                tilt = Math.atan(h / d) * 180 / Math.PI;
+            }
+
+            let zoom = zoomInput;
+            if (!zoom && zmH && zmD) {
+                zoom = 2 * Math.atan((zmD / 2) / zmH) * 180 / Math.PI;
+            }
+
+            drawBeam(h, tilt, zoom);
+        }
+
+        function drawBeam(height, tilt, zoom) {
+            const canvas = document.getElementById("beamCanvas");
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const originX = 300;
+            const groundY = 250;
+            const scale = 50;
+            const lightY = groundY - height * scale;
+
+            // světlo
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(originX, lightY, 6, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // červený tilt paprsek
+            if (tilt !== undefined) {
+                const rad = tilt * Math.PI / 180;
+                const dx = (groundY - lightY) / Math.tan(rad);
+                const targetX = originX + dx;
+                ctx.strokeStyle = "red";
+                ctx.beginPath();
+                ctx.moveTo(originX, lightY);
+                ctx.lineTo(targetX, groundY);
+                ctx.stroke();
+            }
+
+            // modré okraje zoomu
+            if (zoom && tilt !== undefined) {
+                const tiltRad = tilt * Math.PI / 180;
+                const leftRad = (tilt - zoom / 2) * Math.PI / 180;
+                const rightRad = (tilt + zoom / 2) * Math.PI / 180;
+
+                const xLeft = originX + (groundY - lightY) / Math.tan(leftRad);
+                const xRight = originX + (groundY - lightY) / Math.tan(rightRad);
+
+                ctx.strokeStyle = "blue";
+                ctx.beginPath();
+                ctx.moveTo(originX, lightY);
+                ctx.lineTo(xLeft, groundY);
+                ctx.moveTo(originX, lightY);
+                ctx.lineTo(xRight, groundY);
+                ctx.stroke();
+            }
+        }
+    </script>
+</body>
+</html>
