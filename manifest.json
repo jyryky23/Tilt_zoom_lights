@@ -1,7 +1,7 @@
 {
     "name": "Tilt & Zoom Kalkula\u010dka",
     "short_name": "TiltZoom",
-    "start_url": "Tilt_Zoom_Kalkulacka_PWA.html",
+    "start_url": "index.html",
     "display": "standalone",
     "background_color": "#1e1e2f",
     "theme_color": "#1e1e2f",
